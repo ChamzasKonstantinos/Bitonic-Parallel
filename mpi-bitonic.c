@@ -9,7 +9,7 @@ struct timeval startwtime, endwtime;
 double seq_time;
 
 int N;          // data array size
-int *a,*b;         // data array to be sorted
+int *a;         // data array to be sorted
 
 const int ASCENDING  = 1;
 const int DESCENDING = 0;
@@ -31,7 +31,7 @@ void impBitonicSort(void);
     /** the main program **/
 int main(int argc, char **argv) {                        
 
-
+  
   int taskid,numtasks;                                   
   
   if (argc != 2) {
@@ -42,11 +42,12 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);                                
   MPI_Comm_rank(MPI_COMM_WORLD, &taskid);                
   MPI_Comm_size(MPI_COMM_WORLD, &numtasks);              
-  MPI_Status status;                                     
-  a = (int *) malloc(N * sizeof(int));
+  MPI_Status status;   
+  MPI_Request request;                                  
+  a = (int *) malloc((2*N) * sizeof(int));
   srand(taskid);
   printf("Hi I am thread %d and this is my array before sorting ",taskid );
-  init();
+  init(taskid);
   print();
   printf("Hi I am thread %d and this is my array after sorting ",taskid );
   qsort(a, N, sizeof(int), cmpfunc);
@@ -77,7 +78,21 @@ int main(int argc, char **argv) {
   }  // end of master task
   // MAKRIA APO EDW!!!!!!!!!!!!!!!!
   else{
-
+       for(;;){
+		   MPI_Recv(&msg1, 1, MPI_INT, MASTER, FROM_MASTER,MPI_COMM_WORLD, &status);
+		   if(msg==0) break;
+	       MPI_Recv(&msg2, 1, MPI_INT, MASTER, FROM_MASTER,MPI_COMM_WORLD, &status);
+	       if(taskid<msg1){
+	         MPI_Isend (&a,N,MPI_INT,msg1,FROM_WORKER,MPI_COMM_WORLD,&request);
+		     MPI_Recv(&a[N], N, MPI_INT, msg1, FROM_WORKER,MPI_COMM_WORLD, &status);
+		   }
+		   else{
+		     MPI_Isend (&a[N],N,MPI_INT,msg1,FROM_WORKER,MPI_COMM_WORLD,&request);
+		     MPI_Recv(&a, N, MPI_INT, msg1, FROM_WORKER,MPI_COMM_WORLD, &status);
+		   }
+	       bitonicMerge(0, (2*N), msg2);
+	       
+	   }
 
   }
   MPI_Finalize();
@@ -111,10 +126,17 @@ void test() {
 
 
 /** procedure init() : initialize array "a" with data **/
-void init() {
+void init(int id) {
   int i;
-  for (i = 0; i < N; i++) {
-    a[i] = rand() % N; // (N - i);
+  for (i = 0; i <(2*N); i++) {
+	  if(id%2==1){
+        if(i<N) a[i] = rand() % N; // (N - i);
+        else a[i] =0;
+	}
+	else{
+      if(i<N) a[i] =0;
+	  else a[i] = rand() % N; // (N - i);
+	}
   }
 }
 
@@ -156,7 +178,7 @@ inline void compare(int i, int j, int dir) {
    if dir = ASCENDING, and in descending order otherwise. 
    The sequence to be sorted starts at index position lo,
    the parameter cbt is the number of elements to be sorted. 
- **/make[1]: Leaving directory `/home/petros/Desktop/Parallila/mpi'
+ **/
 
 void bitonicMerge(int lo, int cnt, int dir) {
   if (cnt>1) {
