@@ -26,19 +26,19 @@ void recBitonicSort(int lo, int cnt, int dir);
 void impBitonicSort(void);
 
 /** the main program **/ 
-	
+
 
     /** the main program **/
 int main(int argc, char **argv) {                        
-														 
-														 
+
+
   int taskid,numtasks;                                   
-  	
+  
   if (argc != 2) {
-  printf("Usage: %s q\n  where n=2^q is problem size (power of two)\n",
-	   argv[0]);
-  exit(1);
-  }													 
+    printf("Usage: %s q\n  where n=2^q is problem size (power of two)\n",
+    argv[0]);
+    exit(1);
+    } 
   MPI_Init(&argc, &argv);                                
   MPI_Comm_rank(MPI_COMM_WORLD, &taskid);                
   MPI_Comm_size(MPI_COMM_WORLD, &numtasks);              
@@ -53,36 +53,32 @@ int main(int argc, char **argv) {
   print();												 
   int numworkers = numtasks-1;                           
   int source, dest, nbytes, mtype,                       
-	  //~ intsize = sizeof(int), dbsize = sizeof(double),
-	  //~ rows, averow, extra, offset;                   
+  //~ intsize = sizeof(int), dbsize = sizeof(double),
+  //~ rows, averow, extra, offset;                   
   double start, finish;                                  
   double maxr = (double)RAND_MAX;                        
   N = 1<<atoi(argv[1]);
  
-  
- 
- 
  //EDW MPAINEIS!!!!!!!!!!!!!!!!!!!
  if (taskid == MASTER) {
-	start = MPI_Wtime();
-	printf(" I am Master thread and i do nothing for now:) \n ");
-	for (dest=1; dest<=numworkers; dest++) {                   
-	  printf("   sending %d rows to task %d\n",rows,dest);
-	  MPI_Send(&offset      ,         1,    MPI_INT, dest, FROM_MASTER, MPI_COMM_WORLD);
-	  MPI_Send(&rows        ,         1,    MPI_INT, dest, FROM_MASTER, MPI_COMM_WORLD);
-	  MPI_Send(&A[offset][0], rows*dim2, MPI_DOUBLE, dest, FROM_MASTER, MPI_COMM_WORLD);
-	  MPI_Send(&B           , dim2*dim3, MPI_DOUBLE, dest, FROM_MASTER, MPI_COMM_WORLD);
-	  offset = offset + rows;
-	}
-	sleep(4);
-	finish = MPI_Wtime();
-	printf("time for bitonic sorting is %d",finish - start);
+  start = MPI_Wtime();
+  printf(" I am Master thread and i do nothing for now:) \n ");
+  for (dest=1; dest<=numworkers; dest++) {                   
+    printf("   sending %d rows to task %d\n",rows,dest);
+    MPI_Send(&offset      ,         1,    MPI_INT, dest, FROM_MASTER, MPI_COMM_WORLD);
+    MPI_Send(&rows        ,         1,    MPI_INT, dest, FROM_MASTER, MPI_COMM_WORLD);
+    MPI_Send(&A[offset][0], rows*dim2, MPI_DOUBLE, dest, FROM_MASTER, MPI_COMM_WORLD);
+    MPI_Send(&B           , dim2*dim3, MPI_DOUBLE, dest, FROM_MASTER, MPI_COMM_WORLD);
+    offset = offset + rows;
+    }
+  sleep(1);
+  finish = MPI_Wtime();
+  printf("time for bitonic sorting is %d",finish - start);
   }  // end of master task
   // MAKRIA APO EDW!!!!!!!!!!!!!!!!
   else{
-	  
-	  
-	  
+
+
   }
   MPI_Finalize();
  
