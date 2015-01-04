@@ -33,12 +33,24 @@ int main(int argc, char **argv) {
 														 
 														 
   int taskid,numtasks;                                   
-														 
+  	
+  if (argc != 2) {
+  printf("Usage: %s q\n  where n=2^q is problem size (power of two)\n",
+	   argv[0]);
+  exit(1);
+  }													 
   MPI_Init(&argc, &argv);                                
   MPI_Comm_rank(MPI_COMM_WORLD, &taskid);                
   MPI_Comm_size(MPI_COMM_WORLD, &numtasks);              
   MPI_Status status;                                     
-														 
+  a = (int *) malloc(N * sizeof(int));
+  srand(taskid);
+  printf("Hi I am thread %d and this is my array before sorting ",taskid );
+  init();
+  print();
+  printf("Hi I am thread %d and this is my array after sorting ",taskid );
+  qsort(a, N, sizeof(int), cmpfunc);
+  print();												 
   int numworkers = numtasks-1;                           
   int source, dest, nbytes, mtype,                       
 	  //~ intsize = sizeof(int), dbsize = sizeof(double),
@@ -47,16 +59,11 @@ int main(int argc, char **argv) {
   double maxr = (double)RAND_MAX;                        
   N = 1<<atoi(argv[1]);
  
-  if (argc != 2) {
-	printf("Usage: %s q\n  where n=2^q is problem size (power of two)\n",
-		   argv[0]);
-	exit(1);
-  }
+  
  
  
- 
+ //EDW MPAINEIS!!!!!!!!!!!!!!!!!!!
  if (taskid == MASTER) {
- 
 	start = MPI_Wtime();
 	printf(" I am Master thread and i do nothing for now:) \n ");
 	for (dest=1; dest<=numworkers; dest++) {                   
@@ -71,19 +78,12 @@ int main(int argc, char **argv) {
 	finish = MPI_Wtime();
 	printf("time for bitonic sorting is %d",finish - start);
   }  // end of master task
-  else
-  { // section of worker tasks
-	// initialize the each individual matrix
-	 a = (int *) malloc(N * sizeof(int));
-	 srand(taskid);
-	 printf("Hi I am thread %d and this is my array before sorting ",taskid );
-	 init();
-	 print();
-	 printf("Hi I am thread %d and this is my array after sorting ",taskid );
-	 qsort(a, N, sizeof(int), cmpfunc);
-	 print();
- 
-  }  // end of worker task
+  // MAKRIA APO EDW!!!!!!!!!!!!!!!!
+  else{
+	  
+	  
+	  
+  }
   MPI_Finalize();
  
   return 0;
