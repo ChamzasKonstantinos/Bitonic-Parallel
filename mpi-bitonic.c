@@ -14,12 +14,13 @@ struct timeval startwtime, endwtime;
 double seq_time;
 
 int N;          // data array size
-int *a;         // data array to be sorted
+int *a,*b;         // data array to be sorted
+int taskid,numtasks;
 
 const int ASCENDING  = 1;
 const int DESCENDING = 0;
 
-void init(int id);
+void init(void);
 void print(void);
 void sort(void);
 void test(void);
@@ -38,7 +39,7 @@ void impBitonicSort(void);
 int main(int argc, char **argv) {
 
 
-  int taskid,numtasks;
+  
 
   if (argc != 2) {
     printf("Usage: %s q\n  where n=2^q is problem size (power of two)\n",
@@ -57,11 +58,11 @@ int main(int argc, char **argv) {
   MPI_Request request;
 
   //Initialize the matrices for each task
-  a = (int *) malloc((2*N) * sizeof(int));
-
+  a = (int *) malloc(N* sizeof(int));
+  b = (int *) malloc((N*numtasks) * sizeof(int));
   srand(taskid);
   //~ printf("Hi I am thread %d and this is my array before sorting ",taskid );
-  init(taskid);
+  init();
   //~ print();
   if ((taskid+1)%2)
   {
@@ -72,35 +73,68 @@ int main(int argc, char **argv) {
   else
   {
     printf("Hi I am thread %d and this is my array after sorting ",taskid );
-    qsort(&a[N], N, sizeof(int), cmpfuncB);
+    qsort(a, N, sizeof(int), cmpfuncB);
     print();
   }
+  sleep(1);
   double start, finish;
   double maxr = (double)RAND_MAX;
-
+  MPI_Barrier(MPI_COMM_WORLD);
 
   int offset,k;
   for (k = 2; k <= numtasks; k = 2*k) {
     for (offset = k >> 1; offset > 0 ; offset = offset >> 1) {
       
       int partner_id = taskid^offset;
-      printf("I am  %d and my partners id is %d",taskid,partner_id);
+      //~ printf("I am  %d and my partners id is %d",taskid,partner_id);
       if(taskid<partner_id){
-          MPI_Isend (a,N,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
-          MPI_Recv(&a[N], N, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
+          MPI_Isend (&a[N/2],N/2,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
+          MPI_Recv(&a[N/2],N/2, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
           }
       else{
-        MPI_Isend (&a[N],N,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
-        MPI_Recv(a, N, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
+        MPI_Isend (a,N/2,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
+        MPI_Recv(a, N/2, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
       }
-      sleep(1);
-       printf("Hi I am thread %d and i have this array in me ",taskid);
+      int i;
+      for (i=0; i<N/2; i++){
+        compare(i,i+N/2, !(bool)(k&taskid));
+      }
+      if(taskid<partner_id){
+          MPI_Isend (&a[N/2],N/2,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
+          MPI_Recv(&a[N/2],N/2, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
+          }
+      else{
+        MPI_Isend (a,N/2,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
+        MPI_Recv(a, N/2, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
+      }
+      
+   
+       printf("Hi I am thread %d in step %d and i have this array in me \n",taskid,k);
        print();
        sleep(1);
-       //~ bitonicMerge(0, (2*N), (bool)(k&taskid));
-       //~ MPI_BARRIER(MPI_COMM_WORLD);
+       MPI_Barrier(MPI_COMM_WORLD);
     }
+    bitonicMerge(0, N, !(bool)(k&taskid));
   }
+  
+  if(taskid==MASTER){
+    int i;
+   for(i=1;i<numtasks;i++){
+      MPI_Recv(&b[N*i], N, MPI_INT,i, FROM_WORKER,MPI_COMM_WORLD, &status);
+   }
+   for(i=0;i<N;i++){
+      b[i]=a[i];
+   }
+   test();
+   for(i=0;i<N*numtasks;i++){
+     printf(" %d ",b[i]);
+   }
+  }
+  else{
+    MPI_Send (a,N,MPI_INT,0,FROM_WORKER,MPI_COMM_WORLD);
+  }
+  
+  
   MPI_Finalize();
 
   return 0;
@@ -129,8 +163,8 @@ int cmpfuncB(const void* aa, const void* bb)
 void test() {
   int pass = 1;
   int i;
-  for (i = 1; i < N; i++) {
-    pass &= (a[i-1] <= a[i]);
+  for (i = 1; i < N*numtasks; i++) {
+    pass &= (b[i-1] <= b[i]);
   }
 
   printf(" TEST %s\n",(pass) ? "PASSed" : "FAILed");
@@ -138,25 +172,20 @@ void test() {
 
 
 /** procedure init() : initialize array "a" with data **/
-void init(int id) {
+void init() {
   int i;
-  for (i = 0; i <(2*N); i++) {
-	  if((id+1)%2==1){
-        if(i<N) a[i] = rand() % N; // (N - i);
-        else a[i] =0;
-	}
-	else{
-      if(i<N) a[i] =0;
-	  else a[i] = rand() % N; // (N - i);
-	}
+  for (i = 0; i <(N); i++) {
+    a[i] = rand() % N; // (N - i);
+    }
   }
-}
+
 
 /** procedure  print() : print array elements **/
 void print() {
   int i;
-  for (i = 0; i < 2*N; i++) {
-    printf("%d\n", a[i]);
+  
+  for (i = 0; i < N; i++) {
+    printf(" |%d| ", a[i]);
   }
   printf("\n");
 }
