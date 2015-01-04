@@ -59,28 +59,28 @@ int main(int argc, char **argv) {
 
   //Initialize the matrices for each task
   a = (int *) malloc(N* sizeof(int));
-  b = (int *) malloc((N*numtasks) * sizeof(int));
+  b = (int *) malloc((numtasks) * sizeof(int));
   srand(taskid);
   //~ printf("Hi I am thread %d and this is my array before sorting ",taskid );
   init();
   //~ print();
+  if(taskid==MASTER) gettimeofday (&startwtime, NULL);
   if ((taskid+1)%2)
   {
-    printf("Hi I am thread %d and this is my array after sorting ",taskid );
+    //~ printf("Hi I am thread %d and this is my array after sorting ",taskid );
     qsort(a, N, sizeof(int), cmpfuncA);
-    print();
+    //~ print();
     }
   else
   {
-    printf("Hi I am thread %d and this is my array after sorting ",taskid );
+    //~ printf("Hi I am thread %d and this is my array after sorting ",taskid );
     qsort(a, N, sizeof(int), cmpfuncB);
-    print();
+    //~ print();
   }
-  sleep(1);
+  //~ sleep(1);
   double start, finish;
-  double maxr = (double)RAND_MAX;
-  MPI_Barrier(MPI_COMM_WORLD);
-
+  int maxr = (int)RAND_MAX;
+    
   int offset,k;
   for (k = 2; k <= numtasks; k = 2*k) {
     for (offset = k >> 1; offset > 0 ; offset = offset >> 1) {
@@ -109,29 +109,31 @@ int main(int argc, char **argv) {
       }
       
    
-       printf("Hi I am thread %d in step %d and i have this array in me \n",taskid,k);
-       print();
-       sleep(1);
+       //~ printf("Hi I am thread %d in step %d and i have this array in me \n",taskid,k);
+       //~ print();
+       //~ sleep(1);
        MPI_Barrier(MPI_COMM_WORLD);
     }
     bitonicMerge(0, N, !(bool)(k&taskid));
   }
   
   if(taskid==MASTER){
+    gettimeofday (&endwtime, NULL);
+
+   seq_time = (double)((endwtime.tv_usec - startwtime.tv_usec)/1.0e6+ endwtime.tv_sec - startwtime.tv_sec);
+   printf("Imperative wall clock time = %f\n", seq_time);
     int i;
    for(i=1;i<numtasks;i++){
-      MPI_Recv(&b[N*i], N, MPI_INT,i, FROM_WORKER,MPI_COMM_WORLD, &status);
+      MPI_Recv(&b[i], 1, MPI_INT,i, FROM_WORKER,MPI_COMM_WORLD, &status);
    }
-   for(i=0;i<N;i++){
-      b[i]=a[i];
-   }
+   b[0]=a[0];
    test();
-   for(i=0;i<N*numtasks;i++){
+   for(i=0;i<numtasks;i++){
      printf(" %d ",b[i]);
    }
   }
   else{
-    MPI_Send (a,N,MPI_INT,0,FROM_WORKER,MPI_COMM_WORLD);
+    MPI_Send (a,1,MPI_INT,0,FROM_WORKER,MPI_COMM_WORLD);
   }
   
   
@@ -163,7 +165,7 @@ int cmpfuncB(const void* aa, const void* bb)
 void test() {
   int pass = 1;
   int i;
-  for (i = 1; i < N*numtasks; i++) {
+  for (i = 1; i < numtasks; i++) {
     pass &= (b[i-1] <= b[i]);
   }
 
@@ -175,7 +177,7 @@ void test() {
 void init() {
   int i;
   for (i = 0; i <(N); i++) {
-    a[i] = rand() % N; // (N - i);
+    a[i] = rand() % 100; // (N - i);
     }
   }
 
