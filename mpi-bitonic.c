@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &taskid);
   MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
-  MPI_Status status;
+  MPI_Status status,mpistat;
   MPI_Request request;
 
   //Initialize the matrices for each task
@@ -88,12 +88,18 @@ int main(int argc, char **argv) {
       int partner_id = taskid^offset;
       //~ printf("I am  %d and my partners id is %d",taskid,partner_id);
       if(taskid<partner_id){
-          MPI_Isend (&a[N/2],N/2,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
-          MPI_Recv(&a[N/2],N/2, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
+          MPI_Isend (&a[N/2],N/4,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
+          MPI_Recv(&a[N/2],N/4, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
+          MPI_Wait(&request, &mpistat );
+          MPI_Isend (&a[(3*N)/4],N/4,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
+          MPI_Recv(&a[(3*N)/4],N/4, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
           }
       else{
-        MPI_Isend (a,N/2,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
-        MPI_Recv(a, N/2, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
+        MPI_Isend (a,N/4,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
+        MPI_Recv(a, N/4, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
+        MPI_Wait(&request, &mpistat );
+        MPI_Isend (&a[(3*N)/4],N/4,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
+        MPI_Recv(&a[(3*N)/4], N/4, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
       }
       int i;
       for (i=0; i<N/2; i++){
