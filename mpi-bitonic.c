@@ -19,10 +19,12 @@ int *a;         // data array to be sorted
 const int ASCENDING  = 1;
 const int DESCENDING = 0;
 
-void init(void);
+void init(int id);
 void print(void);
 void sort(void);
 void test(void);
+int cmpfuncA(const void* aa, const void* bb);
+int cmpfuncB(const void* aa, const void* bb);
 inline void exchange(int i, int j);
 void compare(int i, int j, int dir);
 void bitonicMerge(int lo, int cnt, int dir);
@@ -58,10 +60,10 @@ int main(int argc, char **argv) {
   a = (int *) malloc((2*N) * sizeof(int));
 
   srand(taskid);
-  printf("Hi I am thread %d and this is my array before sorting ",taskid );
+  //~ printf("Hi I am thread %d and this is my array before sorting ",taskid );
   init(taskid);
-  print();
-  if (taskid%2)
+  //~ print();
+  if ((taskid+1)%2)
   {
     printf("Hi I am thread %d and this is my array after sorting ",taskid );
     qsort(a, N, sizeof(int), cmpfuncA);
@@ -73,8 +75,6 @@ int main(int argc, char **argv) {
     qsort(&a[N], N, sizeof(int), cmpfuncB);
     print();
   }
-  int numworkers = numtasks-1;
-  int source, dest, nbytes, mtype,
   double start, finish;
   double maxr = (double)RAND_MAX;
 
@@ -82,18 +82,23 @@ int main(int argc, char **argv) {
   int offset,k;
   for (k = 2; k <= numtasks; k = 2*k) {
     for (offset = k >> 1; offset > 0 ; offset = offset >> 1) {
-
+      
       int partner_id = taskid^offset;
+      printf("I am  %d and my partners id is %d",taskid,partner_id);
       if(taskid<partner_id){
-          MPI_Isend (&a,N,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
+          MPI_Isend (a,N,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
           MPI_Recv(&a[N], N, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
           }
       else{
         MPI_Isend (&a[N],N,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
-        MPI_Recv(&a, N, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
+        MPI_Recv(a, N, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
       }
-        bitonicMerge(0, (2*N), bool(k&taskid));
-        MPI_BARRIER(MPI_COMM_WORLD);
+      sleep(1);
+       printf("Hi I am thread %d and i have this array in me ",taskid);
+       print();
+       sleep(1);
+       //~ bitonicMerge(0, (2*N), (bool)(k&taskid));
+       //~ MPI_BARRIER(MPI_COMM_WORLD);
     }
   }
   MPI_Finalize();
@@ -136,7 +141,7 @@ void test() {
 void init(int id) {
   int i;
   for (i = 0; i <(2*N); i++) {
-	  if(id%2==1){
+	  if((id+1)%2==1){
         if(i<N) a[i] = rand() % N; // (N - i);
         else a[i] =0;
 	}
@@ -150,7 +155,7 @@ void init(int id) {
 /** procedure  print() : print array elements **/
 void print() {
   int i;
-  for (i = 0; i < N; i++) {
+  for (i = 0; i < 2*N; i++) {
     printf("%d\n", a[i]);
   }
   printf("\n");
