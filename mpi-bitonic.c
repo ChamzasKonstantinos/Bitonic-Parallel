@@ -9,7 +9,7 @@
 #define MASTER 0
 #define FROM_MASTER 1
 #define FROM_WORKER 2
-
+#define CHUNK 4
 struct timeval startwtime, endwtime;
 double seq_time;
 
@@ -54,92 +54,96 @@ int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &taskid);
   MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
-  MPI_Status status,mpistat;
+  MPI_Status status;
   MPI_Request request;
 
   //Initialize the matrices for each task
   a = (int *) malloc(N* sizeof(int));
-  b = (int *) malloc((numtasks) * sizeof(int));
+  b = (int *) malloc((N*numtasks) * sizeof(int));
   srand(taskid);
   //~ printf("Hi I am thread %d and this is my array before sorting ",taskid );
   init();
   //~ print();
-  if(taskid==MASTER) gettimeofday (&startwtime, NULL);
   if ((taskid+1)%2)
   {
-    //~ printf("Hi I am thread %d and this is my array after sorting ",taskid );
+    printf("Hi I am thread %d and this is my array after sorting ",taskid );
     qsort(a, N, sizeof(int), cmpfuncA);
     //~ print();
     }
   else
   {
-    //~ printf("Hi I am thread %d and this is my array after sorting ",taskid );
+    printf("Hi I am thread %d and this is my array after sorting ",taskid );
     qsort(a, N, sizeof(int), cmpfuncB);
     //~ print();
   }
-  //~ sleep(1);
+  sleep(1);
   double start, finish;
-  int maxr = (int)RAND_MAX;
-    
+  double maxr = (double)RAND_MAX;
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int offset,k;
   for (k = 2; k <= numtasks; k = 2*k) {
     for (offset = k >> 1; offset > 0 ; offset = offset >> 1) {
       
       int partner_id = taskid^offset;
       //~ printf("I am  %d and my partners id is %d",taskid,partner_id);
+      // First half of the message
+      int j=0;
+      int hchunk=2*CHUNK;
+      for(j=0;j<CHUNK;j++){
       if(taskid<partner_id){
-          MPI_Isend (&a[N/2],N/4,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
-          MPI_Recv(&a[N/2],N/4, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
-          MPI_Wait(&request, &mpistat );
-          MPI_Isend (&a[(3*N)/4],N/4,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
-          MPI_Recv(&a[(3*N)/4],N/4, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
+          MPI_Isend (&a[(N*j)/hchunk+(N/2)],N/hchunk,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
+          MPI_Recv(&a[(N*j)/hchunk+(N/2)],N/hchunk, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
           }
       else{
-        MPI_Isend (a,N/4,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
-        MPI_Recv(a, N/4, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
-        MPI_Wait(&request, &mpistat );
-        MPI_Isend (&a[(3*N)/4],N/4,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
-        MPI_Recv(&a[(3*N)/4], N/4, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
+        MPI_Isend (&a[(N*j)/hchunk],N/hchunk,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
+        MPI_Recv(&a[(N*j)/hchunk], N/hchunk, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
       }
       int i;
-      for (i=0; i<N/2; i++){
+      for (i=(N*j)/hchunk; i<((N*j)/hchunk+N/hchunk); i++){
         compare(i,i+N/2, !(bool)(k&taskid));
       }
       if(taskid<partner_id){
-          MPI_Isend (&a[N/2],N/2,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
-          MPI_Recv(&a[N/2],N/2, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
+          MPI_Isend (&a[(N*j)/hchunk+(N/2)],N/hchunk,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
+          MPI_Recv(&a[(N*j)/hchunk+(N/2)],N/hchunk, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
           }
       else{
-        MPI_Isend (a,N/2,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
-        MPI_Recv(a, N/2, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
+        MPI_Isend (&a[(N*j)/hchunk],N/hchunk,MPI_INT,partner_id,FROM_WORKER,MPI_COMM_WORLD,&request);
+        MPI_Recv(&a[(N*j)/hchunk], N/hchunk, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
       }
+    }
+      
       
    
-       //~ printf("Hi I am thread %d in step %d and i have this array in me \n",taskid,k);
+       printf("Hi I am thread %d in step %d and i have this array in me \n",taskid,k);
        //~ print();
-       //~ sleep(1);
+       sleep(1);
        MPI_Barrier(MPI_COMM_WORLD);
     }
     bitonicMerge(0, N, !(bool)(k&taskid));
   }
   
   if(taskid==MASTER){
-    gettimeofday (&endwtime, NULL);
-
-   seq_time = (double)((endwtime.tv_usec - startwtime.tv_usec)/1.0e6+ endwtime.tv_sec - startwtime.tv_sec);
-   printf("Imperative wall clock time = %f\n", seq_time);
     int i;
    for(i=1;i<numtasks;i++){
-      MPI_Recv(&b[i], 1, MPI_INT,i, FROM_WORKER,MPI_COMM_WORLD, &status);
+      MPI_Recv(&b[N*i], N, MPI_INT,i, FROM_WORKER,MPI_COMM_WORLD, &status);
    }
-   b[0]=a[0];
+   for(i=0;i<N;i++){
+      b[i]=a[i];
+   }
    test();
-   for(i=0;i<numtasks;i++){
+   int count=0;
+   for(i=0;i<N*numtasks;i++){
+     count++;
+     if(count==1) printf("\n BIN %d ----------- \n",i/N);
+     else if (count==N) count=0;
+     
+     if(i%N<100||i%N>N-100)
      printf(" %d ",b[i]);
    }
   }
   else{
-    MPI_Send (a,1,MPI_INT,0,FROM_WORKER,MPI_COMM_WORLD);
+    MPI_Send (a,N,MPI_INT,0,FROM_WORKER,MPI_COMM_WORLD);
   }
   
   
@@ -171,7 +175,7 @@ int cmpfuncB(const void* aa, const void* bb)
 void test() {
   int pass = 1;
   int i;
-  for (i = 1; i < numtasks; i++) {
+  for (i = 1; i < N*numtasks; i++) {
     pass &= (b[i-1] <= b[i]);
   }
 
@@ -183,7 +187,7 @@ void test() {
 void init() {
   int i;
   for (i = 0; i <(N); i++) {
-    a[i] = rand() % 100; // (N - i);
+    a[i] = rand() % N; // (N - i);
     }
   }
 
