@@ -66,21 +66,21 @@ int main(int argc, char **argv) {
   //~ print();
   if ((taskid+1)%2)
   {
-    printf("Hi I am thread %d and this is my array after sorting ",taskid );
+    //~ printf("Hi I am thread %d and this is my array after sorting ",taskid );
     qsort(a, N, sizeof(int), cmpfuncA);
     //~ print();
     }
   else
   {
-    printf("Hi I am thread %d and this is my array after sorting ",taskid );
+    //~ printf("Hi I am thread %d and this is my array after sorting ",taskid );
     qsort(a, N, sizeof(int), cmpfuncB);
     //~ print();
   }
-  sleep(1);
+  //~ sleep(1);
   double start, finish;
   double maxr = (double)RAND_MAX;
   MPI_Barrier(MPI_COMM_WORLD);
-
+  if(taskid==0) gettimeofday (&startwtime, NULL);
   int offset,k;
   for (k = 2; k <= numtasks; k = 2*k) {
     for (offset = k >> 1; offset > 0 ; offset = offset >> 1) {
@@ -115,15 +115,21 @@ int main(int argc, char **argv) {
       
       
    
-       printf("Hi I am thread %d in step %d and i have this array in me \n",taskid,k);
+       //~ printf("Hi I am thread %d in step %d and i have this array in me \n",taskid,k);
        //~ print();
-       sleep(1);
+       //~ sleep(1);
        MPI_Barrier(MPI_COMM_WORLD);
     }
     bitonicMerge(0, N, !(bool)(k&taskid));
   }
   
   if(taskid==MASTER){
+    gettimeofday (&endwtime, NULL);
+
+  seq_time = (double)((endwtime.tv_usec - startwtime.tv_usec)/1.0e6
+		      + endwtime.tv_sec - startwtime.tv_sec);
+
+  printf("Imperative wall clock time = %f\n", seq_time);
     int i;
    for(i=1;i<numtasks;i++){
       MPI_Recv(&b[N*i], N, MPI_INT,i, FROM_WORKER,MPI_COMM_WORLD, &status);
@@ -132,15 +138,15 @@ int main(int argc, char **argv) {
       b[i]=a[i];
    }
    test();
-   int count=0;
-   for(i=0;i<N*numtasks;i++){
-     count++;
-     if(count==1) printf("\n BIN %d ----------- \n",i/N);
-     else if (count==N) count=0;
-     
-     if(i%N<100||i%N>N-100)
-     printf(" %d ",b[i]);
-   }
+   //~ int count=0;
+   //~ for(i=0;i<N*numtasks;i++){
+     //~ count++;
+     //~ if(count==1) printf("\n BIN %d ----------- \n",i/N);
+     //~ else if (count==N) count=0;
+     //~ 
+     //~ if(i%N<100||i%N>N-100)
+     //~ printf(" %d ",b[i]);
+   //~ }
   }
   else{
     MPI_Send (a,N,MPI_INT,0,FROM_WORKER,MPI_COMM_WORLD);
