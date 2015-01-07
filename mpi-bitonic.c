@@ -4,42 +4,36 @@
 #include <sys/time.h>
 #include "mpi.h"
 
-
-
 #define MASTER 0
-#define FROM_MASTER 1
 #define FROM_WORKER 2
-#define CHUNK 4
+
 struct timeval startwtime, endwtime;
 double seq_time;
 
 int N;          // data array size
-int *a,*b;         // data array to be sorted
+int *a,*b;         // data array to be sorted( b for testing purposes)
 int taskid,numtasks;
-
-const int ASCENDING  = 1;
-const int DESCENDING = 0;
-
+int CHUNK;        //chunk  will break the data MPI_Isends
+//Initializes with marix a with N random numbers
 void init(void);
+//Prints matrix a
 void print(void);
-void sort(void);
+//Tests if the sorting was correct
 void test(void);
+//used in ascending qsort 
 int cmpfuncA(const void* aa, const void* bb);
+//used in descending qsort 
 int cmpfuncB(const void* aa, const void* bb);
+// exchanges elements with indexes aa and bb in matrix a 
 inline void exchange(int i, int j);
+//compares and  exchanges the specified elements
 void compare(int i, int j, int dir);
+//bitonic merging of a bitonic sequence
 void bitonicMerge(int lo, int cnt, int dir);
-void recBitonicSort(int lo, int cnt, int dir);
-void impBitonicSort(void);
+
 
 /** the main program **/
-
-
-    /** the main program **/
 int main(int argc, char **argv) {
-
-
-  
 
   if (argc != 2) {
     printf("Usage: %s q\n  where n=2^q is problem size (power of two)\n",
@@ -47,9 +41,11 @@ int main(int argc, char **argv) {
     exit(1);
     }
 
+  int q;
+  q = atoi(argv[1]);
   // N is the number of elements each matrix holds
-  N = 1<<atoi(argv[1]);
-
+  N = 1<<q;
+  
   //initilize MPI
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &taskid);
@@ -61,32 +57,25 @@ int main(int argc, char **argv) {
   a = (int *) malloc(N* sizeof(int));
   b = (int *) malloc((N*numtasks) * sizeof(int));
   srand(taskid);
-  //~ printf("Hi I am thread %d and this is my array before sorting ",taskid );
   init();
-  //~ print();
-  if ((taskid+1)%2)
-  {
-    //~ printf("Hi I am thread %d and this is my array after sorting ",taskid );
-    qsort(a, N, sizeof(int), cmpfuncA);
-    //~ print();
-    }
-  else
-  {
-    //~ printf("Hi I am thread %d and this is my array after sorting ",taskid );
-    qsort(a, N, sizeof(int), cmpfuncB);
-    //~ print();
-  }
-  //~ sleep(1);
-  double start, finish;
-  double maxr = (double)RAND_MAX;
+  if ((taskid+1)%2) qsort(a, N, sizeof(int), cmpfuncA);
+  else qsort(a, N, sizeof(int), cmpfuncB);
+
+  if (q>14)(CHUNK = 2^(q-14));
+  else CHUNK = 1;
   MPI_Barrier(MPI_COMM_WORLD);
-  if(taskid==0) gettimeofday (&startwtime, NULL);
+  //One thread i used as master to count time
+  if(taskid==MASTER) gettimeofday (&startwtime, NULL);
+
   int offset,k;
+
+  //k is the number of proccesors tha hold 1 bitonic sequence
   for (k = 2; k <= numtasks; k = 2*k) {
+    //offset is the number distance between elements that must be compared
     for (offset = k >> 1; offset > 0 ; offset = offset >> 1) {
       
       int partner_id = taskid^offset;
-      //~ printf("I am  %d and my partners id is %d",taskid,partner_id);
+      printf("I am  %d and my partners id is %d",taskid,partner_id);
       // First half of the message
       int j=0;
       int hchunk=2*CHUNK;
@@ -112,12 +101,6 @@ int main(int argc, char **argv) {
         MPI_Recv(&a[(N*j)/hchunk], N/hchunk, MPI_INT,partner_id, FROM_WORKER,MPI_COMM_WORLD, &status);
       }
     }
-      
-      
-   
-       //~ printf("Hi I am thread %d in step %d and i have this array in me \n",taskid,k);
-       //~ print();
-       //~ sleep(1);
        MPI_Barrier(MPI_COMM_WORLD);
     }
     bitonicMerge(0, N, !(bool)(k&taskid));
@@ -127,7 +110,7 @@ int main(int argc, char **argv) {
     gettimeofday (&endwtime, NULL);
 
   seq_time = (double)((endwtime.tv_usec - startwtime.tv_usec)/1.0e6
-		      + endwtime.tv_sec - startwtime.tv_sec);
+         + endwtime.tv_sec - startwtime.tv_sec);
 
   printf("Imperative wall clock time = %f\n", seq_time);
     int i;
@@ -138,21 +121,10 @@ int main(int argc, char **argv) {
       b[i]=a[i];
    }
    test();
-   //~ int count=0;
-   //~ for(i=0;i<N*numtasks;i++){
-     //~ count++;
-     //~ if(count==1) printf("\n BIN %d ----------- \n",i/N);
-     //~ else if (count==N) count=0;
-     //~ 
-     //~ if(i%N<100||i%N>N-100)
-     //~ printf(" %d ",b[i]);
-   //~ }
   }
   else{
     MPI_Send (a,N,MPI_INT,0,FROM_WORKER,MPI_COMM_WORLD);
   }
-  
-  
   MPI_Finalize();
 
   return 0;
@@ -231,7 +203,7 @@ inline void compare(int i, int j, int dir) {
 
 /** Procedure bitonicMerge()
    It recursively sorts a bitonic sequence in ascending order,
-   if dir = ASCENDING, and in descending order otherwise.
+   if dir = 1, and in descending order otherwise.
    The sequence to be sorted starts at index position lo,
    the parameter cbt is the number of elements to be sorted.
  **/
@@ -248,27 +220,4 @@ void bitonicMerge(int lo, int cnt, int dir) {
 }
 
 
-
-/** function recBitonicSort()
-    first produces a bitonic sequence by recursively sorting
-    its two halves in opposite sorting orders, and then
-    calls bitonicMerge to make them in the same order
- **/
-void recBitonicSort(int lo, int cnt, int dir) {
-  if (cnt>1) {
-    int k=cnt/2;
-    recBitonicSort(lo, k, ASCENDING);
-    recBitonicSort(lo+k, k, DESCENDING);
-    bitonicMerge(lo, cnt, dir);
-  }
-}
-
-
-/** function sort()
-   Caller of recBitonicSort for sorting the entire array of length N
-   in ASCENDING order
- **/
-void sort() {
-  recBitonicSort(0, N, ASCENDING);
-}
 
