@@ -1,4 +1,4 @@
-Parallia_2
+This is a Git repository for the second assignment in course Parrallel Networks
 ==========
 
-Parallial_repository(Ergasia 2 )
+Parallila_repository(Ergasia 2 )

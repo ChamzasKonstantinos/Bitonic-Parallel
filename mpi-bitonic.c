@@ -61,22 +61,21 @@ int main(int argc, char **argv) {
   if ((taskid+1)%2) qsort(a, N, sizeof(int), cmpfuncA);
   else qsort(a, N, sizeof(int), cmpfuncB);
 
-  if (q>14)(CHUNK = 2^(q-14));
-  else CHUNK = 1;
+  CHUNK =1;
+  if (q>14)(CHUNK = CHUNK<<(q-14));
+
   MPI_Barrier(MPI_COMM_WORLD);
   //One thread i used as master to count time
   if(taskid==MASTER) gettimeofday (&startwtime, NULL);
 
   int offset,k;
-
   //k is the number of proccesors tha hold 1 bitonic sequence
   for (k = 2; k <= numtasks; k = 2*k) {
     //offset is the number distance between elements that must be compared
     for (offset = k >> 1; offset > 0 ; offset = offset >> 1) {
       
       int partner_id = taskid^offset;
-      printf("I am  %d and my partners id is %d",taskid,partner_id);
-      // First half of the message
+      // First CHUNK of the message
       int j=0;
       int hchunk=2*CHUNK;
       for(j=0;j<CHUNK;j++){
