@@ -1,0 +1,4 @@
+ 4
+ 16
+ Iterative: 0.560561
+Recursive: 0.614095
