@@ -1,0 +1,29 @@
+import os
+import time
+from subprocess import call
+from time import sleep
+
+
+processors = [2, 4, 8, 16, 32, 64, 128]
+Q = range(16, 21)
+
+for n_proc in processors:
+    for q in Q:
+        if n_proc==128:
+            if q==19:
+              t=600
+            elif q==20:
+              t=1200
+            else:
+              t=300
+        elif n_proc==64:
+          t=300
+        elif n_proc==32:
+          t=120
+        else:
+          t=60
+        filename = "results{0}{1}.txt".format(n_proc, q)
+        command = "mpiexec  -n {0} ./mpi-bitonic {1}".format(n_proc, q)
+        call(command,shell=True)
+        time.sleep(t)
+        print  filename + "is done"
