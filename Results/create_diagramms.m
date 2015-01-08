@@ -1,4 +1,4 @@
-function create_digram(parallel_data,serial_data)
+function create_digram(parallel_data,serial_data,name)
 
 
 %Create Parallel Data
@@ -41,11 +41,18 @@ end
 Time_MPI
 
 h = figure(1);
+ 
 save('Serial_Mpi_Time','Time_MPI')
 plot(Time_MPI')
 set(gca, 'XTick',1:5, 'XTickLabel',Q_Vector)
 xlabel('Q')
 ylabel('serial/parallel')
-legend(Legend_vector)
+legend(Legend_vector,'Location','Best')
+
 grid
-saveas(h,'Diagramm.jpeg')
+if((size(name))>1)
+  saveas(h,'Diagramm.jpeg')
+else
+  title(name)
+  saveas(h,[name '.png'])
+end
