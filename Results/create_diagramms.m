@@ -47,4 +47,5 @@ set(gca, 'XTick',1:5, 'XTickLabel',Q_Vector)
 xlabel('Q')
 ylabel('serial/parallel')
 legend(Legend_vector)
+grid
 saveas(h,'Diagramm.jpeg')

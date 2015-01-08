@@ -5,7 +5,8 @@ FileNames = textscan(ls(Folder),'%s');
 
 M = length((FileNames{1}));
 FileIDS = zeros(M);
-Data = 2*ones(35,5);
+Data = 2*ones(M,5);
+Time_Rec = [];
 Raw_data = {};
 for i=1:M 
   FileIDS(i) = fopen([Folder '/' FileNames{1}{i}]);
@@ -14,6 +15,7 @@ for i=1:M
   Nodes = '1';
   Ppn = Raw_data{i}{1}{1};
   Time = Raw_data{i}{1}{4};
+  Time_Rec = [Time_Rec  ,str2num(Raw_data{i}{1}{6})];
   Test = 'Passed';
 
   if(not(strcmpi(Test,'Passed')))
@@ -25,7 +27,9 @@ for i=1:M
   
 end
 
-save('SerialDataBitonic','Data')
+save('SerialDataBitonicImp','Data')
+Data(:,4) = Time_Rec'
+save('SerialDataBitonicRec','Data')
 clear
 fclose('all');
-load('SerialDataBitonic')
+load('SerialDataBitonicImp')
