@@ -13,8 +13,8 @@ for i=1:M
   Q = Raw_data{i}{1}{3};
   Nodes = Raw_data{i}{1}{10};
   Ppn = Raw_data{i}{1}{13};
-  Time = Raw_data{i}{1}{19};
-  Test = Raw_data{i}{1}{21};
+  Time = Raw_data{i}{1}{34};
+  Test = Raw_data{i}{1}{36};
 
   if(not(strcmpi(Test,'Passed')))
     fprintf('Test didnt Pass Check it out!!!!!!!!!!')

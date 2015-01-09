@@ -40,25 +40,12 @@ for i=1:size(Time_MPI,1)
 end
 Time_MPI
 
-for i=1:6
-  A(i,:) = Q_Vector +i -1;
-end
-
 h = figure(1);
-hold on
+ 
 save('Serial_Mpi_Time','Time_MPI')
-
-
-plot (A(1,:),Time_MPI(1,:),'b')
-plot (A(2,:),Time_MPI(2,:),'g')
-plot (A(3,:),Time_MPI(3,:),'r')
-plot (A(4,:),Time_MPI(4,:),'c')
-plot (A(5,:),Time_MPI(5,:),'m')
-plot (A(6,:),Time_MPI(6,:),'k')
-
-
-set(gca, 'XTick',1:9, 'XTickLabel',[17, 18, 19 ,20 ,21 ,22 ,23, 25, 25, 26])
-xlabel('N+Q')
+plot(Time_MPI')
+set(gca, 'XTick',1:5, 'XTickLabel',Q_Vector)
+xlabel('Q')
 ylabel('serial/parallel')
 legend(Legend_vector,'Location','Best')
 
