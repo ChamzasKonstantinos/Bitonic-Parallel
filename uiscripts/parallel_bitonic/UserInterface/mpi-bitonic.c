@@ -14,7 +14,7 @@ double seq_time,sumseq_time,average_seq_time;
 int j;
 
 int N;          // data array size
-int *a,*b;         // data array to be sorted( b for testing purposes)
+int *a,*b,*c;         // data array to be sorted( b for testing purposes)
 int taskid,numtasks;
 int CHUNK;        //chunk  will break the data MPI_Isends
 //Initializes with marix a with N random numbers
@@ -22,7 +22,7 @@ void init(void);
 //Prints matrix a
 void print(void);
 //Tests if the sorting was correct
-void test(void);
+int test(void);
 //used in ascending qsort
 int cmpfuncA(const void* aa, const void* bb);
 //used in descending qsort
@@ -100,11 +100,15 @@ int main(int argc, char **argv) {
   }
   //Initialize the matrices for each task
   a = (int *) malloc(N* sizeof(int));
-  b = (int *) malloc((N*numtasks) * sizeof(int));
+  b = (int *) malloc(3* sizeof(int));
+  c = (int *) malloc( 3* sizeof(int));
   MPI_Barrier(MPI_COMM_WORLD);
-  for(j=0;j<ITERATION_NUM;j++){
+  int t;
+  for(t=0;t<ITERATION_NUM;t++){
     srand(taskid);
     init();
+    
+    if(taskid==MASTER) gettimeofday (&startwtime, NULL);
     if ((taskid+1)%2) qsort(a, N, sizeof(int), cmpfuncA);
     else qsort(a, N, sizeof(int), cmpfuncB);
 
@@ -113,7 +117,7 @@ int main(int argc, char **argv) {
 
     MPI_Barrier(MPI_COMM_WORLD);
     //One thread i used as master to count time
-    if(taskid==MASTER) gettimeofday (&startwtime, NULL);
+   
 
     int offset,k;
     //k is the number of proccesors tha hold 1 bitonic sequence
@@ -160,29 +164,42 @@ int main(int argc, char **argv) {
 
     printf("Imperative wall clock time = %f\n", seq_time);
     sumseq_time+=seq_time;
-    if(j==ITERATION_NUM-1){
-      average_seq_time = sumseq_time/ITERATION_NUM;mpiexec  -n 8 ./mpi-bitonic 16
+    if(t==ITERATION_NUM-1){
+      average_seq_time = sumseq_time/ITERATION_NUM;
       printf("Average imperative wall clock time = %f\n", average_seq_time);
       fprintf(f, " %d\n %d\n %f\n",numtasks,q,average_seq_time);
     }
     
      int i;
+     int sum=0,pass=1;
+     int prev, next;
+     prev = a[N-1];
+     sum=test();
      for(i=1;i<numtasks;i++){
-        MPI_Recv(&b[N*i], N, MPI_INT,i, FROM_WORKER,MPI_COMM_WORLD, &status);
+        
+        MPI_Recv(c, 3, MPI_INT,i, FROM_WORKER,MPI_COMM_WORLD, &status);
+        sum=sum+c[0];
+        next = c[1];
+        if (prev>next) pass=0;
+        prev=c[2];
      }
-     for(i=0;i<N;i++){
-        b[i]=a[i];
-     }
-     test();
+         if(sum==numtasks && pass) printf("TEST PASSed \n");
+         else printf("TEST FAILed \n");
     }
     else{
-      MPI_Send (a,N,MPI_INT,0,FROM_WORKER,MPI_COMM_WORLD);
+      b[0]=test();
+      b[1]=a[0];
+      b[2]=a[N-1];
+      MPI_Send (b,3,MPI_INT,0,FROM_WORKER,MPI_COMM_WORLD);
     }
+   
     MPI_Barrier(MPI_COMM_WORLD);
  }
   fclose(f);
   MPI_Finalize();
-
+ free(a);
+ free(b);
+ free(c);
   return 0;
 }
 
@@ -206,16 +223,16 @@ int cmpfuncB(const void* aa, const void* bb)
 
 
 /** procedure test() : verify sort results **/
-void test() {
+int test() {
   int pass = 1;
   int i;
-  for (i = 1; i < N*numtasks; i++) {
-    pass &= (b[i-1] <= b[i]);
+  for (i = 1; i < N; i++) {
+    pass &= (a[i-1] <= a[i]);
   }
 
-  printf(" TEST %s\n",(pass) ? "PASSed" : "FAILed");
+  //printf(" TEST %s\n",(pass) ? "PASSed" : "FAILed");
+  return pass;
 }
-
 
 /** procedure init() : initialize array "a" with data **/
 void init() {
